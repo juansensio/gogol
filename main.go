@@ -47,18 +47,15 @@ func updateCell(cells [][]bool, i int, j int) bool {
 	}
 	// Apply Game of Life rules
 	if cells[i][j] {
-		// Live cell
+		// Live cell continues to live if it has 2 or 3 neighbors, otherwise it dies
 		return liveNeighbors == 2 || liveNeighbors == 3
 	} else {
-		// Dead cell
+		// Dead cell becomes live if it has exactly 3 neighbors, otherwise it stays dead
 		return liveNeighbors == 3
 	}
 }
 
 func main() {
-	// Seed the random number generator
-	rand.Seed(time.Now().UnixNano())
-
 	// initialize cells
 	cells := make([][]bool, Ny)
 	for i := range cells {
