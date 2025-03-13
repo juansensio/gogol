@@ -2,12 +2,12 @@
 
 Game of Life in GO
 
-# GO tips
-
-Exported names are capitalized, i.e math.Pi, time.Now, rand.Intn, ...
-
-## Functions
-
-In functions, types go after variable names
-
-Functions can return multiple values
+- [x] [naive](./naive.go): basic implementation with arrays, for loops and if-else statements
+- [ ] pad arrays to avoid if-else statements
+- [x] print in terminal
+- [ ] decouple simulation and visualization
+- [ ] output video
+- [ ] matrix-vector multiply
+- [ ] sparse matrix
+- [ ] matrix-vector multiply paralel
+- [ ] benchmark (compare simulation speed of different implementations at different world sizes with same seed)
