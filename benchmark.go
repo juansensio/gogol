@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -306,6 +307,43 @@ func updateCellParallel(cells [][]bool, startRow, endRow int, workerID int, resu
 	resultChan <- WorkerResult{cells: nextCells, workerID: workerID}
 }
 
+func updateCellParallel2(cells [][]bool, nextCells [][]bool, startRow, endRow int, workerID int, wg *sync.WaitGroup, Nx, Ny int) {
+	defer wg.Done()
+
+	// Process only the assigned rows
+	for i := startRow; i < endRow; i++ {
+		for j := range cells[i] {
+			// Count live neighbors, handling edges carefully
+			liveNeighbors := 0
+			for di := -1; di <= 1; di++ {
+				for dj := -1; dj <= 1; dj++ {
+					// Skip the cell itself
+					if di == 0 && dj == 0 {
+						continue
+					}
+					// Calculate neighbor coordinates
+					ni := i + di
+					nj := j + dj
+					// Check bounds
+					if ni >= 0 && ni < Ny && nj >= 0 && nj < Nx {
+						if cells[ni][nj] {
+							liveNeighbors++
+						}
+					}
+				}
+			}
+			// Apply Game of Life rules
+			if cells[i][j] {
+				// Live cell continues to live if it has 2 or 3 neighbors, otherwise it dies
+				nextCells[i][j] = liveNeighbors == 2 || liveNeighbors == 3
+			} else {
+				// Dead cell becomes live if it has exactly 3 neighbors, otherwise it stays dead
+				nextCells[i][j] = liveNeighbors == 3
+			}
+		}
+	}
+}
+
 func parallel(cells [][]bool, Nx, Ny, ITS, WORKERS int) {
 	// iterate
 	for i := 0; i < ITS; i++ {
@@ -344,6 +382,37 @@ func parallel(cells [][]bool, Nx, Ny, ITS, WORKERS int) {
 			}
 		}
 
+	}
+}
+
+func parallel2(cells [][]bool, Nx, Ny, ITS, WORKERS int) {
+	// iterate
+	for i := 0; i < ITS; i++ {
+		// Create a new grid for the next state
+		nextCells := make([][]bool, Ny)
+		for i := range nextCells {
+			nextCells[i] = make([]bool, Nx)
+		}
+
+		// Use WaitGroup for synchronization
+		var wg sync.WaitGroup
+		wg.Add(WORKERS)
+
+		// Calculate rows per worker
+		rowsPerWorker := Ny / WORKERS
+
+		// Launch workers
+		for w := 0; w < WORKERS; w++ {
+			startRow := w * rowsPerWorker
+			endRow := startRow + rowsPerWorker
+			if w == WORKERS-1 {
+				endRow = Ny // Make sure the last worker processes any remaining rows
+			}
+			go updateCellParallel2(cells, nextCells, startRow, endRow, w, &wg, Nx, Ny)
+		}
+
+		// Wait for all workers to complete
+		wg.Wait()
 	}
 }
 
@@ -501,6 +570,28 @@ func runParallel(Nx, Ny, ITS, runs, WORKERS int) int64 {
 	return totalTime / int64(runs)
 }
 
+func runParallel2(Nx, Ny, ITS, runs, WORKERS int) int64 {
+	var totalTime int64
+	for i := 0; i < runs; i++ {
+		fmt.Print(fmt.Sprintf("%d.", i+1))
+		// initialize cells
+		cells := make([][]bool, Ny)
+		for i := range cells {
+			cells[i] = make([]bool, Nx)
+			for j := range cells[i] {
+				if rand.Float32() < 0.3 { // 30% chance of being alive
+					cells[i][j] = true
+				}
+			}
+		}
+		start := time.Now()
+		parallel2(cells, Nx, Ny, ITS, WORKERS)
+		totalTime += time.Since(start).Milliseconds()
+	}
+	fmt.Println()
+	return totalTime / int64(runs)
+}
+
 func main() {
 	N := []int{100, 200, 500, 1000}
 	ITS := 100
@@ -519,37 +610,37 @@ func main() {
 	for _, n := range N {
 		fmt.Printf("Benchmarking size %d\n", n)
 
-		// Time naive implementation
-		fmt.Printf("Naive implementation\n")
-		meanTime := runNaive(n, n, ITS, runs)
-		ips := float64(ITS) / (float64(meanTime) / 1000.0)
-		fmt.Printf("Naive implementation: %d ms (%.1f iterations/s)\n", meanTime, ips)
-		// Write naive result
-		f.WriteString(fmt.Sprintf("%d,naive,%d,%.1f\n", n, meanTime, ips))
+		// // Time naive implementation
+		// fmt.Printf("Naive implementation\n")
+		// meanTime := runNaive(n, n, ITS, runs)
+		// ips := float64(ITS) / (float64(meanTime) / 1000.0)
+		// fmt.Printf("Naive implementation: %d ms (%.1f iterations/s)\n", meanTime, ips)
+		// // Write naive result
+		// f.WriteString(fmt.Sprintf("%d,naive,%d,%.1f\n", n, meanTime, ips))
 
-		// Time padded implementation
-		fmt.Printf("Padded implementation\n")
-		meanPadTime := runPad(n, n, ITS, runs)
-		padIps := float64(ITS) / (float64(meanPadTime) / 1000.0)
-		fmt.Printf("Padded implementation: %d ms (%.1f iterations/s)\n", meanPadTime, padIps)
-		// Write padded result
-		f.WriteString(fmt.Sprintf("%d,padded,%d,%.1f\n", n, meanPadTime, padIps))
+		// // Time padded implementation
+		// fmt.Printf("Padded implementation\n")
+		// meanPadTime := runPad(n, n, ITS, runs)
+		// padIps := float64(ITS) / (float64(meanPadTime) / 1000.0)
+		// fmt.Printf("Padded implementation: %d ms (%.1f iterations/s)\n", meanPadTime, padIps)
+		// // Write padded result
+		// f.WriteString(fmt.Sprintf("%d,padded,%d,%.1f\n", n, meanPadTime, padIps))
 
-		// Time structed implementation
-		fmt.Printf("Structed implementation\n")
-		meanStructedTime := runStruct(n, n, ITS, runs)
-		structedIps := float64(ITS) / (float64(meanStructedTime) / 1000.0)
-		fmt.Printf("Structed implementation: %d ms (%.1f iterations/s)\n", meanStructedTime, structedIps)
-		// Write structed result
-		f.WriteString(fmt.Sprintf("%d,structed,%d,%.1f\n", n, meanStructedTime, structedIps))
+		// // Time structed implementation
+		// fmt.Printf("Structed implementation\n")
+		// meanStructedTime := runStruct(n, n, ITS, runs)
+		// structedIps := float64(ITS) / (float64(meanStructedTime) / 1000.0)
+		// fmt.Printf("Structed implementation: %d ms (%.1f iterations/s)\n", meanStructedTime, structedIps)
+		// // Write structed result
+		// f.WriteString(fmt.Sprintf("%d,structed,%d,%.1f\n", n, meanStructedTime, structedIps))
 
-		// Time matrix implementation (only for small grids)
-		fmt.Printf("Matrix implementation\n")
-		meanMatrixTime := runMatrix(n, n, ITS, runs)
-		matrixIps := float64(ITS) / (float64(meanMatrixTime) / 1000.0)
-		fmt.Printf("Matrix implementation: %d ms (%.1f iterations/s)\n", meanMatrixTime, matrixIps)
-		// Write matrix result
-		f.WriteString(fmt.Sprintf("%d,matrix,%d,%.1f\n", n, meanMatrixTime, matrixIps))
+		// // Time matrix implementation (only for small grids)
+		// fmt.Printf("Matrix implementation\n")
+		// meanMatrixTime := runMatrix(n, n, ITS, runs)
+		// matrixIps := float64(ITS) / (float64(meanMatrixTime) / 1000.0)
+		// fmt.Printf("Matrix implementation: %d ms (%.1f iterations/s)\n", meanMatrixTime, matrixIps)
+		// // Write matrix result
+		// f.WriteString(fmt.Sprintf("%d,matrix,%d,%.1f\n", n, meanMatrixTime, matrixIps))
 
 		// Time parallel implementation
 		workers := []int{2, 4, 8}
@@ -560,6 +651,16 @@ func main() {
 			fmt.Printf("Parallel implementation: %d ms (%.1f iterations/s)\n", meanParallelTime, parallelIps)
 			// Write parallel result
 			f.WriteString(fmt.Sprintf("%d,parallel_%d,%d,%.1f\n", n, w, meanParallelTime, parallelIps))
+		}
+
+		// Time parallel2 implementation
+		for _, w := range workers {
+			fmt.Printf("Parallel2 implementation with %d workers\n", w)
+			meanParallelTime := runParallel2(n, n, ITS, runs, w)
+			parallelIps := float64(ITS) / (float64(meanParallelTime) / 1000.0)
+			fmt.Printf("Parallel2 implementation: %d ms (%.1f iterations/s)\n", meanParallelTime, parallelIps)
+			// Write parallel result
+			f.WriteString(fmt.Sprintf("%d,parallel2_%d,%d,%.1f\n", n, w, meanParallelTime, parallelIps))
 		}
 	}
 }
