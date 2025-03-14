@@ -9,9 +9,14 @@ Game of Life in GO
     - [ ] generate video
 - [x] use structs and methods / interfaces
 - [ ] organize code in main with cli args and GOL logic
-- [ ] pad arrays to avoid if-else statements
-- [ ] decouple simulation and visualization
-- [ ] matrix-vector multiply
-- [ ] sparse matrix
+- [x] pad arrays to avoid if-else statements
+- [x] decouple simulation and visualization
+- [x] matrix-vector multiply
+- [x] sparse matrix
 - [ ] matrix-vector multiply paralel
 - [ ] benchmark (compare simulation speed of different implementations at different world sizes with same seed)
+
+## Results
+
+- Padding improves naive
+- Using structs / methods make it slower.

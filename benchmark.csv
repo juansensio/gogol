@@ -1,0 +1,8 @@
+size,algorithm,time_ms,iterations_per_second
+100,naive,12,8333.3
+100,padded,8,12500.0
+100,structed,10,10000.0
+100,matrix,85,1176.5
+500,naive,240,416.7
+500,padded,200,500.0
+500,structed,251,398.4
