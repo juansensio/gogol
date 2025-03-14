@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -32,16 +33,11 @@ type WorkerResult struct {
 	workerID int
 }
 
-func updateCellParallel(cells [][]bool, startRow, endRow int, workerID int, resultChan chan WorkerResult) {
-	// Create a new grid section for the next state
-	nextCells := make([][]bool, endRow-startRow)
-	for y := range nextCells {
-		nextCells[y] = make([]bool, Nx)
-	}
+func updateCellParallel(cells [][]bool, nextCells [][]bool, startRow, endRow int, workerID int, wg *sync.WaitGroup) {
+	defer wg.Done()
 
 	// Process only the assigned rows
 	for i := startRow; i < endRow; i++ {
-		localI := i - startRow // Local index for our section
 		for j := range cells[i] {
 			// Count live neighbors, handling edges carefully
 			liveNeighbors := 0
@@ -65,21 +61,25 @@ func updateCellParallel(cells [][]bool, startRow, endRow int, workerID int, resu
 			// Apply Game of Life rules
 			if cells[i][j] {
 				// Live cell continues to live if it has 2 or 3 neighbors, otherwise it dies
-				nextCells[localI][j] = liveNeighbors == 2 || liveNeighbors == 3
+				nextCells[i][j] = liveNeighbors == 2 || liveNeighbors == 3
 			} else {
 				// Dead cell becomes live if it has exactly 3 neighbors, otherwise it stays dead
-				nextCells[localI][j] = liveNeighbors == 3
+				nextCells[i][j] = liveNeighbors == 3
 			}
 		}
 	}
-
-	// Send the result back through the channel with the worker ID
-	resultChan <- WorkerResult{cells: nextCells, workerID: workerID}
 }
 
 func updateCellsConcurrent(cells [][]bool) [][]bool {
-	// Create a channel to receive results
-	resultChan := make(chan WorkerResult, WORKERS)
+	// Create a new grid for the next state
+	nextCells := make([][]bool, Ny)
+	for i := range nextCells {
+		nextCells[i] = make([]bool, Nx)
+	}
+
+	// Use WaitGroup for synchronization
+	var wg sync.WaitGroup
+	wg.Add(WORKERS)
 
 	// Calculate rows per worker
 	rowsPerWorker := Ny / WORKERS
@@ -91,32 +91,22 @@ func updateCellsConcurrent(cells [][]bool) [][]bool {
 		if w == WORKERS-1 {
 			endRow = Ny // Make sure the last worker processes any remaining rows
 		}
-		go updateCellParallel(cells, startRow, endRow, w, resultChan)
+		go updateCellParallel(cells, nextCells, startRow, endRow, w, &wg)
 	}
 
-	// Create a new grid for the combined result
-	nextCells := make([][]bool, Ny)
-	for i := range nextCells {
-		nextCells[i] = make([]bool, Nx)
-	}
-
-	// Collect results from all workers
-	for w := 0; w < WORKERS; w++ {
-		result := <-resultChan
-		workerID := result.workerID
-		partialResult := result.cells
-		startRow := workerID * rowsPerWorker
-
-		// Copy the partial result to the combined grid
-		for i := range partialResult {
-			copy(nextCells[startRow+i], partialResult[i])
-		}
-	}
+	// Wait for all workers to complete
+	wg.Wait()
 
 	return nextCells
 }
 
 func main() {
+	// Add import for sync package at the top of the file
+	// import "sync"
+
+	// Set random seed for more varied patterns
+	rand.Seed(time.Now().UnixNano())
+
 	// initialize cells
 	cells := make([][]bool, Ny)
 	for i := range cells {
