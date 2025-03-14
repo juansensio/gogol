@@ -20,3 +20,4 @@ Game of Life in GO
 
 - Padding improves naive
 - Using structs / methods make it slower.
+- sparse matrix is faster, but initial matrix setup takes a long time and can crash program

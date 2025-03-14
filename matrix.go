@@ -112,23 +112,62 @@ func main() {
 	}
 
 	// Create matrix of neighbors
-	neighbors := make([][]int, (Nx+2)*(Ny+2))
-	for i := range neighbors {
-		neighbors[i] = make([]int, (Nx+2)*(Ny+2))
-	}
-	for i := 1; i <= Ny; i++ {
-		for j := 1; j <= Nx; j++ {
+	// neighbors := make([][]int, (Nx+2)*(Ny+2))
+	// for i := range neighbors {
+	// 	neighbors[i] = make([]int, (Nx+2)*(Ny+2))
+	// }
+	// for i := 1; i <= Ny; i++ {
+	// 	for j := 1; j <= Nx; j++ {
+	// 		for di := -1; di <= 1; di++ {
+	// 			for dj := -1; dj <= 1; dj++ {
+	// 				if di == 0 && dj == 0 {
+	// 					continue
+	// 				}
+	// 				neighbors[i*(Nx+2)+j][(i+di)*(Nx+2)+(j+dj)] = 1
+	// 			}
+	// 		}
+	// 	}
+	// }
+	// neighbors = toSparse(neighbors)
+
+	// create neighbors sparse matrix directly in CSR format
+	// calculate number of non-zero elements first
+	// neighbors = toSparse(neighbors)
+	nnz := 8 * Nx * Ny // each cell has 8 neighbors
+
+	// Create CSR format arrays
+	neighbors := make([][]int, 3)
+	neighbors[0] = make([]int, (Nx+2)*(Ny+2)+1) // row pointers
+	neighbors[1] = make([]int, nnz)             // column indices
+	neighbors[2] = make([]int, nnz)             // values
+
+	// Fill arrays directly
+	idx := 0
+	// Initialize all row pointers to their correct starting positions
+	for i := 0; i < (Nx+2)*(Ny+2); i++ {
+		neighbors[0][i] = idx
+
+		// Only add neighbors for cells in the active grid
+		row := i / (Nx + 2)
+		col := i % (Nx + 2)
+		if row >= 1 && row <= Ny && col >= 1 && col <= Nx {
 			for di := -1; di <= 1; di++ {
 				for dj := -1; dj <= 1; dj++ {
 					if di == 0 && dj == 0 {
 						continue
 					}
-					neighbors[i*(Nx+2)+j][(i+di)*(Nx+2)+(j+dj)] = 1
+					ni := row + di
+					nj := col + dj
+					if ni >= 0 && ni < Ny+2 && nj >= 0 && nj < Nx+2 {
+						neighbors[1][idx] = ni*(Nx+2) + nj
+						neighbors[2][idx] = 1
+						idx++
+					}
 				}
 			}
 		}
 	}
-	neighbors = toSparse(neighbors)
+	neighbors[0][(Nx+2)*(Ny+2)] = idx
 
 	// print sparse matrix
 	// fmt.Println("Sparse Matrix:")

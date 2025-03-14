@@ -7,17 +7,7 @@ import (
 	"time"
 )
 
-func naive(Nx, Ny, ITS int) {
-	// initialize cells
-	cells := make([][]bool, Ny)
-	for i := range cells {
-		cells[i] = make([]bool, Nx)
-		for j := range cells[i] {
-			if rand.Float32() < 0.3 { // 30% chance of being alive
-				cells[i][j] = true
-			}
-		}
-	}
+func naive(cells [][]bool, Nx, Ny, ITS int) {
 	// iterate
 	for i := 0; i < ITS; i++ {
 		// Create a new grid for the next state
@@ -62,19 +52,7 @@ func naive(Nx, Ny, ITS int) {
 	}
 }
 
-func pad(Nx, Ny, ITS int) {
-	// initialize cells
-	cells := make([][]bool, Ny+2)
-	for i := range cells {
-		cells[i] = make([]bool, Nx+2)
-	}
-	for i := 1; i <= Ny; i++ {
-		for j := 1; j <= Nx; j++ {
-			if rand.Float32() < 0.3 { // 30% chance of being alive
-				cells[i][j] = true
-			}
-		}
-	}
+func pad(cells [][]bool, Nx, Ny, ITS int) {
 	// iterate
 	for i := 0; i < ITS; i++ {
 		// Create a new grid for the next state
@@ -178,9 +156,7 @@ func (b *Board) update() {
 	}
 }
 
-func structed(Nx, Ny, ITS int) {
-	b := Board{}
-	b.init(Nx, Ny)
+func structed(b *Board, ITS int) {
 	for i := 0; i < ITS; i++ {
 		b.update()
 	}
@@ -255,34 +231,7 @@ func matrixVectorMultiplicationSparse(sparse [][]int, vector []int) []int {
 	return out
 }
 
-func matrix(Nx, Ny, ITS int) {
-	// initialize cells
-	cells := make([]int, (Nx+2)*(Ny+2))
-	for i := 1; i <= Ny; i++ {
-		for j := 1; j <= Nx; j++ {
-			if rand.Float32() < 0.3 { // 30% chance of being alive
-				cells[i*(Nx+2)+j] = 1
-			}
-		}
-	}
-	// Create matrix of neighbors
-	neighbors := make([][]int, (Nx+2)*(Ny+2))
-	for i := range neighbors {
-		neighbors[i] = make([]int, (Nx+2)*(Ny+2))
-	}
-	for i := 1; i <= Ny; i++ {
-		for j := 1; j <= Nx; j++ {
-			for di := -1; di <= 1; di++ {
-				for dj := -1; dj <= 1; dj++ {
-					if di == 0 && dj == 0 {
-						continue
-					}
-					neighbors[i*(Nx+2)+j][(i+di)*(Nx+2)+(j+dj)] = 1
-				}
-			}
-		}
-	}
-	neighbors = toSparse(neighbors)
+func matrix(cells []int, neighbors [][]int, Nx, Ny, ITS int) {
 	// iterate
 	for i := 0; i < ITS; i++ {
 		// matrix-vector multiplication
@@ -307,12 +256,132 @@ func matrix(Nx, Ny, ITS int) {
 	}
 }
 
-func run(Nx, Ny, ITS int, runs int, f func(Nx, Ny, ITS int)) int64 {
+func runNaive(Nx, Ny, ITS int, runs int) int64 {
 	var totalTime int64
 	for i := 0; i < runs; i++ {
 		fmt.Print(fmt.Sprintf("%d.", i+1))
+		// initialize cells
+		cells := make([][]bool, Ny)
+		for i := range cells {
+			cells[i] = make([]bool, Nx)
+			for j := range cells[i] {
+				if rand.Float32() < 0.3 { // 30% chance of being alive
+					cells[i][j] = true
+				}
+			}
+		}
 		start := time.Now()
-		f(Nx, Ny, ITS)
+		naive(cells, Nx, Ny, ITS)
+		totalTime += time.Since(start).Milliseconds()
+	}
+	fmt.Println()
+	return totalTime / int64(runs)
+}
+
+func runPad(Nx, Ny, ITS int, runs int) int64 {
+	var totalTime int64
+	for i := 0; i < runs; i++ {
+		fmt.Print(fmt.Sprintf("%d.", i+1))
+		// initialize cells
+		cells := make([][]bool, Ny+2)
+		for i := range cells {
+			cells[i] = make([]bool, Nx+2)
+		}
+		for i := 1; i <= Ny; i++ {
+			for j := 1; j <= Nx; j++ {
+				if rand.Float32() < 0.3 { // 30% chance of being alive
+					cells[i][j] = true
+				}
+			}
+		}
+		start := time.Now()
+		pad(cells, Nx, Ny, ITS)
+		totalTime += time.Since(start).Milliseconds()
+	}
+	fmt.Println()
+	return totalTime / int64(runs)
+}
+
+func runStruct(Nx, Ny, ITS int, runs int) int64 {
+	var totalTime int64
+	for i := 0; i < runs; i++ {
+		fmt.Print(fmt.Sprintf("%d.", i+1))
+		// initialize cells
+		b := Board{}
+		b.init(Nx, Ny)
+		start := time.Now()
+		structed(&b, ITS)
+		totalTime += time.Since(start).Milliseconds()
+	}
+	fmt.Println()
+	return totalTime / int64(runs)
+}
+
+func runMatrix(Nx, Ny, ITS int, runs int) int64 {
+	var totalTime int64
+	// Create matrix of neighbors
+	// neighbors := make([][]int, (Nx+2)*(Ny+2))
+	// for i := range neighbors {
+	// 	neighbors[i] = make([]int, (Nx+2)*(Ny+2))
+	// }
+	// for i := 1; i <= Ny; i++ {
+	// 	for j := 1; j <= Nx; j++ {
+	// 		for di := -1; di <= 1; di++ {
+	// 			for dj := -1; dj <= 1; dj++ {
+	// 				if di == 0 && dj == 0 {
+	// 					continue
+	// 				}
+	// 				neighbors[i*(Nx+2)+j][(i+di)*(Nx+2)+(j+dj)] = 1
+	// 			}
+	// 		}
+	// 	}
+	// }
+	// neighbors = toSparse(neighbors)
+	nnz := 8 * Nx * Ny // each cell has 8 neighbors
+	// Create CSR format arrays
+	neighbors := make([][]int, 3)
+	neighbors[0] = make([]int, (Nx+2)*(Ny+2)+1) // row pointers
+	neighbors[1] = make([]int, nnz)             // column indices
+	neighbors[2] = make([]int, nnz)             // values
+	// Fill arrays directly
+	idx := 0
+	// Initialize all row pointers to their correct starting positions
+	for i := 0; i < (Nx+2)*(Ny+2); i++ {
+		neighbors[0][i] = idx
+		// Only add neighbors for cells in the active grid
+		row := i / (Nx + 2)
+		col := i % (Nx + 2)
+		if row >= 1 && row <= Ny && col >= 1 && col <= Nx {
+			for di := -1; di <= 1; di++ {
+				for dj := -1; dj <= 1; dj++ {
+					if di == 0 && dj == 0 {
+						continue
+					}
+					ni := row + di
+					nj := col + dj
+					if ni >= 0 && ni < Ny+2 && nj >= 0 && nj < Nx+2 {
+						neighbors[1][idx] = ni*(Nx+2) + nj
+						neighbors[2][idx] = 1
+						idx++
+					}
+				}
+			}
+		}
+	}
+	neighbors[0][(Nx+2)*(Ny+2)] = idx
+	for i := 0; i < runs; i++ {
+		fmt.Print(fmt.Sprintf("%d.", i+1))
+		// initialize cells
+		cells := make([]int, (Nx+2)*(Ny+2))
+		for i := 1; i <= Ny; i++ {
+			for j := 1; j <= Nx; j++ {
+				if rand.Float32() < 0.3 { // 30% chance of being alive
+					cells[i*(Nx+2)+j] = 1
+				}
+			}
+		}
+		start := time.Now()
+		matrix(cells, neighbors, Nx, Ny, ITS)
 		totalTime += time.Since(start).Milliseconds()
 	}
 	fmt.Println()
@@ -320,7 +389,7 @@ func run(Nx, Ny, ITS int, runs int, f func(Nx, Ny, ITS int)) int64 {
 }
 
 func main() {
-	N := []int{100, 500, 1000}
+	N := []int{100, 200, 500, 1000}
 	ITS := 100
 	runs := 10
 
@@ -339,7 +408,7 @@ func main() {
 
 		// Time naive implementation
 		fmt.Printf("Naive implementation\n")
-		meanTime := run(n, n, ITS, runs, naive)
+		meanTime := runNaive(n, n, ITS, runs)
 		ips := float64(ITS) / (float64(meanTime) / 1000.0)
 		fmt.Printf("Naive implementation: %d ms (%.1f iterations/s)\n", meanTime, ips)
 		// Write naive result
@@ -347,7 +416,7 @@ func main() {
 
 		// Time padded implementation
 		fmt.Printf("Padded implementation\n")
-		meanPadTime := run(n, n, ITS, runs, pad)
+		meanPadTime := runPad(n, n, ITS, runs)
 		padIps := float64(ITS) / (float64(meanPadTime) / 1000.0)
 		fmt.Printf("Padded implementation: %d ms (%.1f iterations/s)\n", meanPadTime, padIps)
 		// Write padded result
@@ -355,15 +424,15 @@ func main() {
 
 		// Time structed implementation
 		fmt.Printf("Structed implementation\n")
-		meanStructedTime := run(n, n, ITS, runs, structed)
+		meanStructedTime := runStruct(n, n, ITS, runs)
 		structedIps := float64(ITS) / (float64(meanStructedTime) / 1000.0)
 		fmt.Printf("Structed implementation: %d ms (%.1f iterations/s)\n", meanStructedTime, structedIps)
 		// Write structed result
 		f.WriteString(fmt.Sprintf("%d,structed,%d,%.1f\n", n, meanStructedTime, structedIps))
 
-		// Time matrix implementation
+		// Time matrix implementation (only for small grids)
 		fmt.Printf("Matrix implementation\n")
-		meanMatrixTime := run(n, n, ITS, runs, matrix)
+		meanMatrixTime := runMatrix(n, n, ITS, runs)
 		matrixIps := float64(ITS) / (float64(meanMatrixTime) / 1000.0)
 		fmt.Printf("Matrix implementation: %d ms (%.1f iterations/s)\n", meanMatrixTime, matrixIps)
 		// Write matrix result
