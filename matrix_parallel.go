@@ -27,29 +27,6 @@ func printCellsTerminal(i int, cells []int) {
 	}
 }
 
-func matrixVectorMultiplicationSparse(sparse [][]int, vector []int) []int {
-	out := make([]int, len(vector))
-	rowPtr := sparse[0]
-	colIdx := sparse[1]
-	values := sparse[2]
-
-	// For each row
-	for i := 0; i < len(vector); i++ {
-		// Get range of non-zero elements for this row
-		start := rowPtr[i]
-		end := rowPtr[i+1]
-
-		// Multiply and sum non-zero elements
-		for j := start; j < end; j++ {
-			col := colIdx[j]
-			val := values[j]
-			out[i] += val * vector[col]
-		}
-	}
-
-	return out
-}
-
 func matrixVectorMultiplicationSparseParallel(sparse [][]int, vector []int) []int {
 	out := make([]int, len(vector))
 	rowPtr := sparse[0]
@@ -134,9 +111,6 @@ func applyRulesParallel(cells []int, alive []int) {
 }
 
 func main() {
-	// Set random seed
-	rand.Seed(time.Now().UnixNano())
-
 	// initialize cells
 	cells := make([]int, (Nx+2)*(Ny+2))
 	for i := 1; i <= Ny; i++ {
