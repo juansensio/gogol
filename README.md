@@ -3,10 +3,14 @@
 Game of Life in GO
 
 - [x] [naive](./naive.go): basic implementation with arrays, for loops and if-else statements
-- [ ] pad arrays to avoid if-else statements
 - [x] print in terminal
-- [ ] decouple simulation and visualization
 - [ ] output video
+    - [x] save images
+    - [ ] generate video
+- [x] use structs and methods / interfaces
+- [ ] organize code in main with cli args and GOL logic
+- [ ] pad arrays to avoid if-else statements
+- [ ] decouple simulation and visualization
 - [ ] matrix-vector multiply
 - [ ] sparse matrix
 - [ ] matrix-vector multiply paralel
